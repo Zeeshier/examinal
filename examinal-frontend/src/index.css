@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-300 font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-white font-display uppercase;
+    letter-spacing: -0.03em;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.1); /* slate-900 with 10% opacity */
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(71, 85, 105, 0.5); /* slate-600 with 50% opacity */
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(59, 130, 246, 0.6); /* blue-500 with 60% opacity */
+}
+
+/* no-scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply px-5 py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-blue-600/20;
+  }
+  .btn-outline {
+    @apply px-5 py-2.5 bg-navy-800 hover:bg-navy-700 text-white rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-outline {
+    @apply px-5 py-2.5 bg-transparent border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-danger {
+    @apply px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-success {
+    @apply px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-ghost {
+    @apply px-5 py-2.5 text-slate-600 hover:text-navy-800 hover:bg-slate-100 rounded-xl font-medium text-sm transition-all duration-200 inline-flex items-center justify-center gap-2;
+  }
+  .btn-white {
+    @apply px-5 py-2.5 bg-white text-navy-800 hover:bg-slate-100 rounded-xl font-semibold text-sm transition-all duration-200 inline-flex items-center justify-center gap-2 shadow-lg shadow-black/10;
+  }
+  .btn-lg {
+    @apply px-7 py-3.5 text-base rounded-xl;
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply bg-white border border-slate-200/80 rounded-2xl shadow-sm;
+  }
+  .card-dark {
+    @apply bg-navy-800 border border-white/10 rounded-2xl;
+  }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-navy-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all duration-200;
+  }
+  .input-dark {
+    @apply w-full px-4 py-2.5 bg-navy-900/50 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all duration-200;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold tracking-wide;
+  }
+  .badge-blue { @apply badge bg-blue-50 text-blue-700; }
+  .badge-emerald { @apply badge bg-emerald-50 text-emerald-700; }
+  .badge-amber { @apply badge bg-amber-50 text-amber-700; }
+  .badge-red { @apply badge bg-red-50 text-red-700; }
+  .badge-slate { @apply badge bg-slate-100 text-slate-600; }
+
+  /* ── Section ── */
+  .section-padding {
+    @apply px-6 md:px-8 lg:px-16 xl:px-24;
+  }
+}
+
+/* ── Exam Secure Environment ── */
+.exam-secure::-webkit-scrollbar { display: none; }
+.exam-secure { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Screenshot deterrent: blurs the page when printed */
+@media print {
+  body * { visibility: hidden !important; }
+  body::after {
+    visibility: visible !important;
+    content: "This exam is protected. Screenshots and printing are not allowed.";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: 700;
+    color: #000;
+  }
+}
+
+/* Prevent text selection on exam page */
+.exam-secure * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection inside textarea answers only */
+.exam-secure textarea {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+/* Violation dot pulse */
+@keyframes violation-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+.violation-dot { animation: violation-pulse 1.5s ease-in-out infinite; }
