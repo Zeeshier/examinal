@@ -25,9 +25,16 @@ function PreExamModal({ exam, onStart }) {
         <h1 className="text-2xl font-bold text-white text-center mb-2">
           {exam?.title}
         </h1>
-        <p className="text-slate-400 text-center text-sm mb-8">
-          Duration: {exam?.duration_minutes} min &nbsp;·&nbsp; {exam?.total_marks} marks
-        </p>
+        <div className="text-center mb-8">
+          <p className="text-slate-400 text-sm">
+            Duration: {exam?.duration_minutes} min &nbsp;·&nbsp; {exam?.total_marks} marks
+          </p>
+          {exam?.schedule_type === "scheduled" && (
+            <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mt-2">
+              Ends at: {new Date(exam.end_time).toLocaleDateString()} {new Date(exam.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
 
         {/* Rules */}
         <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5 mb-6 space-y-3">
@@ -143,6 +150,7 @@ export default function ExamTaking() {
   const timerRef = useRef(null);
   const autosaveRef = useRef(null);
   const violationsRef = useRef(0);
+  const submittingRef = useRef(false);
 
   // ── Load exam data ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -156,7 +164,27 @@ export default function ExamTaking() {
       try {
         const { data: e } = await API.get(`/api/exams/${examId}`);
         setExam(e);
-        setTimeLeft(e.duration_minutes * 60);
+        
+        // Calculate Time Left
+        const now = new Date();
+        if (e.schedule_type === "scheduled" && e.end_time) {
+          const endTime = new Date(e.end_time);
+          const diffInSecs = Math.floor((endTime - now) / 1000);
+          
+          if (diffInSecs <= 0) {
+            toast.error("This exam's scheduled time has already ended.");
+            navigate("/exams");
+            return;
+          }
+          
+          // Time left is the minimum of (duration) and (time until end_time)
+          const durationSecs = e.duration_minutes * 60;
+          setTimeLeft(Math.min(durationSecs, diffInSecs));
+        } else {
+          // Anytime exam
+          setTimeLeft(e.duration_minutes * 60);
+        }
+
         const { data: q } = await API.get(`/api/exams/${examId}/questions-student`);
         setQuestions(q);
         const { data: sub } = await API.post("/api/submissions/start", { 
@@ -237,6 +265,7 @@ export default function ExamTaking() {
 
     // 1. Tab visibility change
     const handleVisibility = () => {
+      if (submittingRef.current) return;
       if (document.hidden) {
         setBlackout(true);
         triggerViolation("You switched to another tab", "tab_switch");
@@ -247,16 +276,19 @@ export default function ExamTaking() {
 
     // 2. Window blur (switched app/window)
     const handleBlur = () => {
+      if (submittingRef.current) return;
       setBlackout(true);
       triggerViolation("You left the exam window", "focus_lost");
     };
 
     const handleFocus = () => {
+      if (submittingRef.current) return;
       setBlackout(false);
     };
 
     // 3. Fullscreen exit
     const handleFullscreenChange = () => {
+      if (submittingRef.current) return;
       if (!document.fullscreenElement && violationsRef.current < MAX_VIOLATIONS) {
         triggerViolation("You exited fullscreen mode", "fullscreen_exit");
       }
@@ -264,6 +296,7 @@ export default function ExamTaking() {
 
     // 4. Mouse leaves window
     const handleMouseLeave = (e) => {
+      if (submittingRef.current) return;
       if (e.clientY <= 0 || e.clientX <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
         triggerViolation("Your cursor left the exam window", "cursor_out");
       }
@@ -271,6 +304,7 @@ export default function ExamTaking() {
 
     // 5. Blocked keys: F12, Ctrl+U, Ctrl+Shift+I/J/C, PrintScreen, Ctrl+P
     const handleKeyDown = (e) => {
+      if (submittingRef.current) return;
       const blocked = [
         e.key === "F12",
         e.key === "PrintScreen",
@@ -289,13 +323,14 @@ export default function ExamTaking() {
     };
 
     // 6. Copy / Paste / Cut / Context menu
-    const handleCopy = (e) => { e.preventDefault(); logActivity("copy_attempt"); toast.error("Copying is disabled", { id: "copy" }); };
-    const handlePaste = (e) => { e.preventDefault(); logActivity("paste_attempt"); toast.error("Pasting is disabled", { id: "paste" }); };
-    const handleCut = (e) => { e.preventDefault(); logActivity("cut_attempt"); };
-    const handleContextMenu = (e) => { e.preventDefault(); logActivity("right_click"); };
+    const handleCopy = (e) => { if (submittingRef.current) return; e.preventDefault(); logActivity("copy_attempt"); toast.error("Copying is disabled", { id: "copy" }); };
+    const handlePaste = (e) => { if (submittingRef.current) return; e.preventDefault(); logActivity("paste_attempt"); toast.error("Pasting is disabled", { id: "paste" }); };
+    const handleCut = (e) => { if (submittingRef.current) return; e.preventDefault(); logActivity("cut_attempt"); };
+    const handleContextMenu = (e) => { if (submittingRef.current) return; e.preventDefault(); logActivity("right_click"); };
 
     // 7. Block print
     const handleBeforePrint = () => {
+      if (submittingRef.current) return;
       logActivity("print_attempt");
       toast.error("Printing is not allowed during the exam");
     };
@@ -355,7 +390,10 @@ export default function ExamTaking() {
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (auto = false, reason = "manual") => {
     if (!auto && !confirm("Are you sure you want to submit your exam?")) return;
+    
+    submittingRef.current = true;
     setSubmitting(true);
+    
     clearInterval(timerRef.current);
     clearInterval(autosaveRef.current);
 

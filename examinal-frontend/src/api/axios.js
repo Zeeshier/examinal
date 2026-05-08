@@ -20,10 +20,11 @@ API.interceptors.response.use(
       const refresh = localStorage.getItem("refresh_token");
       if (refresh) {
         try {
+          // Send refresh token as JSON body (server-side rotation)
           const { data } = await axios.post(
             `${API.defaults.baseURL}/api/auth/refresh`,
-            null,
-            { params: { refresh_token: refresh } }
+            { refresh_token: refresh },
+            { headers: { "Content-Type": "application/json" } }
           );
           localStorage.setItem("access_token", data.access_token);
           localStorage.setItem("refresh_token", data.refresh_token);
@@ -43,3 +44,14 @@ API.interceptors.response.use(
 );
 
 export default API;
+
+/**
+ * Extracts a clean, user-friendly error message from an Axios error.
+ */
+export function formatError(err) {
+  if (!err) return "An unexpected error occurred.";
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((d) => d.msg ?? d).join(", ");
+  return err?.message || "An unexpected error occurred.";
+}

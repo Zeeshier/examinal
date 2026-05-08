@@ -10,7 +10,7 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=255)
-    role: str = Field(default="student", pattern="^(instructor|student)$")
+    role: str = Field(default="student", pattern="^(admin|instructor|student)$")
 
     @field_validator("username")
     @classmethod
@@ -77,3 +77,61 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     sub: int
     role: str
+
+
+# ── Password Management Schemas ──
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r'[a-z]', v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r'[0-9]', v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r'[^a-zA-Z0-9]', v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_change_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r'[A-Z]', v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r'[a-z]', v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r'[0-9]', v):
+            raise ValueError("Password must contain at least one digit")
+        if not re.search(r'[^a-zA-Z0-9]', v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
+class MessageResponse(BaseModel):
+    message: str

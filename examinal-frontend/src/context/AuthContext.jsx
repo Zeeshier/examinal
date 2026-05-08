@@ -39,13 +39,44 @@ export function AuthProvider({ children }) {
     await API.post("/api/auth/register", payload);
   };
 
-  const logout = () => {
+  // ── Server-side logout — revoke the refresh token ──
+  const logout = async () => {
+    const refresh = localStorage.getItem("refresh_token");
+    if (refresh) {
+      try {
+        await API.post("/api/auth/logout", { refresh_token: refresh });
+      } catch {
+        // Best-effort: still clear client even if server call fails
+      }
+    }
+    localStorage.clear();
+    setUser(null);
+  };
+
+  // ── Forgot password ──
+  const forgotPassword = async (email) => {
+    await API.post("/api/auth/forgot-password", { email });
+  };
+
+  // ── Reset password (from email link) ──
+  const resetPassword = async (token, new_password) => {
+    await API.post("/api/auth/reset-password", { token, new_password });
+  };
+
+  // ── Change password (while logged in) ──
+  const changePassword = async (current_password, new_password) => {
+    await API.post("/api/auth/change-password", { current_password, new_password });
+    // Force re-login since all sessions are revoked
     localStorage.clear();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      login, register, logout,
+      forgotPassword, resetPassword, changePassword,
+    }}>
       {children}
     </AuthContext.Provider>
   );

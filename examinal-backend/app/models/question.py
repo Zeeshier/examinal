@@ -17,6 +17,8 @@ class ExamQuestion(Base):
     correct_answer: Mapped[str] = mapped_column(Text, nullable=False)
     marks: Mapped[float] = mapped_column(Float, default=1.0)
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rubric: Mapped[str | None] = mapped_column(Text, nullable=True)  # Detailed grading criteria
+    topic: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source_passage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("content_passages.id"), nullable=True)
     difficulty: Mapped[str] = mapped_column(String(20), default="medium")  # easy | medium | hard
     order_index: Mapped[int] = mapped_column(Integer, default=0)

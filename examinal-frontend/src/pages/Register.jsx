@@ -118,7 +118,7 @@ export default function Register() {
   return (
     <div className="">
       <div className="mb-8 text-center lg:text-left">
-        <h2 className="text-4xl font-black text-navy-950 mb-3 tracking-tight uppercase">Initialize</h2>
+        <h2 className="text-4xl font-medium text-navy-950 mb-3 tracking-tight uppercase">Initialize</h2>
         <p className="text-slate-600 font-light text-lg">Create your institutional node.</p>
       </div>
 

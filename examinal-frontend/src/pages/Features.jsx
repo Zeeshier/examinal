@@ -11,8 +11,8 @@ import ParticleBackground from "../components/ParticleBackground";
  */
 function FeatureBentoCard({ icon: Icon, title, desc, tags, delay, className = "", isBlue }) {
   const bgClass = isBlue 
-    ? "bg-blue-600 border-blue-500/50 group-hover:bg-blue-700 group-hover:border-blue-400 shadow-blue-900/10 group-hover:shadow-blue-900/20"
-    : "bg-white/90 border-slate-200/70 group-hover:bg-white group-hover:border-blue-200 shadow-blue-900/5 group-hover:shadow-blue-900/10";
+    ? "bg-blue-600 border-blue-500/50 group-hover:bg-gradient-to-br group-hover:from-blue-600 group-hover:via-blue-500 group-hover:to-blue-700 group-hover:border-blue-400 shadow-blue-500/40 group-hover:shadow-blue-400/60"
+    : "bg-blue-50/80 border-2 border-blue-100/50 group-hover:bg-gradient-to-br group-hover:from-blue-50 group-hover:via-white/60 group-hover:to-blue-50 group-hover:border-blue-200 shadow-blue-900/5 group-hover:shadow-blue-900/10";
     
   const textTitleClass = isBlue ? "text-white" : "text-navy-950";
   const textDescClass = isBlue ? "text-blue-100 group-hover:text-white" : "text-slate-600 group-hover:text-slate-700";
@@ -34,7 +34,7 @@ function FeatureBentoCard({ icon: Icon, title, desc, tags, delay, className = ""
       {/* Liquid Border Layer */}
       <div className="absolute -inset-[1px] bg-gradient-to-br from-blue-200/0 via-blue-300/0 to-cyan-200/0 group-hover:from-blue-300 group-hover:via-blue-200 group-hover:to-cyan-300 rounded-3xl transition-all duration-500 -z-10" />
       
-      <div className={`h-full p-8 md:p-10 backdrop-blur-xl rounded-3xl transition-all duration-300 shadow-lg overflow-hidden relative border ${bgClass}`}>
+      <div className={`h-full p-8 md:p-10 backdrop-blur-xl rounded-3xl transition-all duration-300 shadow-lg overflow-hidden relative border group-hover:-translate-y-2 ${bgClass}`}>
         {/* Subtle Background Glow */}
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-400/10 blur-[80px] group-hover:bg-blue-400/20 transition-all" />
         
@@ -61,6 +61,8 @@ function FeatureBentoCard({ icon: Icon, title, desc, tags, delay, className = ""
     </motion.div>
   );
 }
+
+import HeroSection from "../components/HeroSection";
 
 export default function Features() {
   const features = [
@@ -118,39 +120,20 @@ export default function Features() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden pt-16 pb-16 bg-white">
-      {/* ── BACKDROP AMBIENCE ── */}
-      <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden z-0 pointer-events-none opacity-60">
-        <ParticleBackground />
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white to-transparent" />
-      </div>
-      <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-blue-400/10 rounded-full blur-[150px] -z-10" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-400/10 rounded-full blur-[120px] -z-10" />
+    <div className="relative min-h-screen overflow-hidden bg-blue-50/10 -mt-16">
+      {/* ── PREMIUM TEXTURE OVERLAY ── */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-50 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+
+      <HeroSection 
+        height="min-h-[50vh]"
+        tag="Platform Features v4.0"
+        title="Engineered for"
+        highlight="Modern Education."
+        subtitle="Every layer of the Examinal system is designed for total exam security, instant grading, and world-class reliability."
+      />
       
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        {/* ── HEADER ── */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12 relative"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full mb-8 backdrop-blur-md shadow-sm shadow-blue-900/5">
-            <Sparkles size={11} className="text-blue-600" />
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-600">Platform Features v4.0</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black text-navy-950 mb-8 tracking-tighter">
-            Engineered for <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 italic">
-              Modern Education.
-            </span>
-          </h1>
-          <div className="w-24 h-1.5 bg-gradient-to-r from-blue-600 to-cyan-400 mx-auto rounded-full mb-8" />
-          <p className="text-slate-600 max-w-2xl mx-auto text-xl font-light leading-relaxed">
-            Every layer of the Examinal system is designed for total exam security, 
-            instant grading, and world-class reliability.
-          </p>
-        </motion.div>
+      <div className="max-w-7xl mx-auto px-6 relative z-10 py-24">
+
 
         {/* ── BENTO GRID ── */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">

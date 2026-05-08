@@ -77,7 +77,10 @@
 
   /* ── Card ── */
   .card {
-    @apply bg-white border border-slate-200/80 rounded-2xl shadow-sm;
+    @apply bg-blue-50/50 backdrop-blur-md border border-blue-100/50 rounded-2xl shadow-sm transition-all duration-300;
+  }
+  .card:hover {
+    @apply bg-gradient-to-br from-blue-50/90 via-white/50 to-blue-50/90 border-blue-200/60 shadow-lg -translate-y-1;
   }
   .card-dark {
     @apply bg-navy-800 border border-white/10 rounded-2xl;
@@ -150,3 +153,28 @@
   50% { opacity: 0.5; transform: scale(1.4); }
 }
 .violation-dot { animation: violation-pulse 1.5s ease-in-out infinite; }
+
+/* ── Accessibility: Reduced Motion ── */
+/* Disables all animations/transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Framer Motion respect: stop transforms */
+  [style*="transform"],
+  [style*="opacity"] {
+    transition: none !important;
+  }
+
+  /* Keep spinners barely visible so they still indicate loading */
+  .animate-spin {
+    animation: none !important;
+    opacity: 0.5;
+  }
+}

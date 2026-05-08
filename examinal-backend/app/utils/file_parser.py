@@ -22,6 +22,10 @@ def parse_pdf(path: str) -> List[Dict[str, Any]]:
                 for row in table:
                     if row:
                         text += "\n" + " | ".join(str(cell or "") for cell in row)
+            
+            if not text.strip():
+                logger.warning("No text extracted from PDF %s page %d (might be a scanned image)", path, i + 1)
+                
             pages.append({"text": text, "page": i + 1})
     logger.info("Parsed PDF %s: %d pages", path, len(pages))
     return pages

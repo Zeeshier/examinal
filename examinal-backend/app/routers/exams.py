@@ -22,6 +22,8 @@ def create_exam(payload: ExamCreate, user: InstructorUser, db: Session = Depends
     course = db.query(Course).filter(Course.id == payload.course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    if course.instructor_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to create an exam for this course")
     exam = Exam(**payload.model_dump(), created_by=user.id)
     db.add(exam)
     db.commit()
@@ -142,11 +144,11 @@ def update_exam(exam_id: int, payload: ExamUpdate, user: InstructorUser, db: Ses
 
 @router.post("/{exam_id}/publish", response_model=ExamOut)
 def publish_exam(exam_id: int, user: InstructorUser, db: Session = Depends(get_db)):
-    if user.role != "instructor":
-        raise HTTPException(status_code=403, detail="Only instructors can publish exams")
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.created_by != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only the exam owner can publish it")
     if not exam.questions:
         raise HTTPException(status_code=400, detail="Add questions before publishing")
     
@@ -165,11 +167,11 @@ def publish_exam(exam_id: int, user: InstructorUser, db: Session = Depends(get_d
 
 @router.post("/{exam_id}/unpublish", response_model=ExamOut)
 def unpublish_exam(exam_id: int, user: InstructorUser, db: Session = Depends(get_db)):
-    if user.role != "instructor":
-        raise HTTPException(status_code=403, detail="Only instructors can unpublish exams")
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.created_by != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only the exam owner can unpublish it")
     exam.is_published = False
     db.commit()
     db.refresh(exam)
@@ -181,6 +183,8 @@ def assign_students(exam_id: int, payload: ExamAssign, user: InstructorUser, db:
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.created_by != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only the exam owner can assign students")
 
     created = 0
     for sid in payload.student_ids:
@@ -202,6 +206,8 @@ def assign_all_enrolled(exam_id: int, user: InstructorUser, db: Session = Depend
     exam = db.query(Exam).filter(Exam.id == exam_id).first()
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.created_by != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only the exam owner can assign students")
 
     enrollments = db.query(CourseEnrollment).filter(CourseEnrollment.course_id == exam.course_id).all()
     created = 0

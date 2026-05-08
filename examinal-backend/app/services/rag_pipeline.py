@@ -105,22 +105,29 @@ class RAGPipeline:
         json_mode: bool = False,
         max_tokens: int | None = None,
     ) -> str:
-        context_parts = []
-        for i, p in enumerate(context_passages):
-            text = p.get("text", "")
-            if not text:
-                continue
-            score_info = ""
-            if "rerank_score" in p:
-                score_info = f" [relevance: {p['rerank_score']:.3f}]"
-            context_parts.append(f"[Passage {i + 1}{score_info}]\n{text}")
+        if context_passages:
+            context_parts = []
+            for i, p in enumerate(context_passages):
+                text = p.get("text", "")
+                if not text:
+                    continue
+                score_info = f" [relevance: {p['rerank_score']:.3f}]" if "rerank_score" in p else ""
+                context_parts.append(f"[Passage {i + 1}{score_info}]\n{text}")
 
-        context_text = "\n\n---\n\n".join(context_parts)
-        full_prompt = (
-            f"### CONTEXT (course material — use ONLY this):\n"
-            f"{context_text}\n\n"
-            f"### INSTRUCTION:\n{user_prompt}"
-        )
+            context_text = "\n\n---\n\n".join(context_parts)
+            full_prompt = (
+                f"### CONTEXT (course material — use ONLY this):\n"
+                f"{context_text}\n\n"
+                f"### INSTRUCTION:\n{user_prompt}"
+            )
+        else:
+            # General Knowledge Fallback
+            full_prompt = (
+                f"### INSTRUCTION:\n"
+                f"I don't have specific course documents for this topic, so please use your general knowledge "
+                f"to generate high-quality academic questions.\n\n"
+                f"{user_prompt}"
+            )
         return _get_llm_response(
             full_prompt, system_prompt,
             temperature=temperature,

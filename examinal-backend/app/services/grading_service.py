@@ -421,9 +421,13 @@ class GradingService:
     # ═══════════════════════════════════════════════════════════
 
     def _extract_rubric(self, question: ExamQuestion) -> str:
-        """Extract rubric criteria from question explanation."""
+        """Extract rubric criteria: prioritized dedicated field, fallback to explanation."""
+        if question.rubric and question.rubric.strip():
+            return question.rubric.strip()
+            
         if not question.explanation:
             return ""
+            
         explanation = question.explanation
         rubric_parts = []
         if "Rubric:" in explanation:
@@ -432,6 +436,7 @@ class GradingService:
         elif "Key terms:" in explanation:
             terms_section = explanation.split("Key terms:")[1].strip()
             rubric_parts.append(f"Must include these key terms: {terms_section}")
+            
         if not rubric_parts:
             rubric_parts.append(f"Compare against model answer. Explanation: {explanation}")
         return "\n".join(rubric_parts)

@@ -63,12 +63,19 @@ export default function ExamList() {
     e.preventDefault(); 
     setBusy(true); 
     try { 
-      await API.post("/api/exams/", { ...form, course_id: parseInt(form.course_id) }); 
+      const payload = { ...form, course_id: parseInt(form.course_id) };
+      if (!payload.start_time) payload.start_time = null;
+      if (!payload.end_time) payload.end_time = null;
+      
+      await API.post("/api/exams/", payload); 
       toast.success("Exam created"); 
       setShowCreate(false); 
       load(); 
     } catch (err) { 
-      toast.error(err.response?.data?.detail || "Failed"); 
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 
+                  Array.isArray(detail) ? detail[0]?.msg : "Failed to create exam";
+      toast.error(msg); 
     } 
     setBusy(false); 
   };
@@ -122,19 +129,22 @@ export default function ExamList() {
           <div className="flex-1 min-w-0 overflow-hidden">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Filter by Category</p>
             <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-              {["All", ...EXAM_CATEGORIES].map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(cat)}
-                  className={`px-6 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex-shrink-0 ${
-                    filterCategory.toLowerCase() === cat.toLowerCase() 
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" 
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60 hover:border-slate-300"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {(() => {
+                const available = new Set([...EXAM_CATEGORIES, ...exams.map(e => e.category).filter(Boolean)]);
+                return ["All", ...Array.from(available)].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
+                    className={`px-6 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex-shrink-0 ${
+                      filterCategory.toLowerCase() === cat.toLowerCase() 
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" 
+                        : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60 hover:border-slate-300"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 
@@ -198,11 +208,20 @@ export default function ExamList() {
                     {courses.find(c => c.id === ex.course_id)?.title || "Course"}
                   </p>
                   <h3 className="text-lg font-black text-navy-950 tracking-tighter uppercase mb-2 line-clamp-1">{ex.title}</h3>
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <Clock size={14} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{ex.duration_minutes} MIN</span>
-                    <span className="text-slate-200">•</span>
-                    <span className="text-[10px] font-bold uppercase tracking-widest">{ex.schedule_type === 'anytime' ? 'Anytime' : new Date(ex.start_time).toLocaleDateString()}</span>
+                  <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-slate-400">
+                    <div className="flex items-center gap-1">
+                      <Clock size={12} className="text-blue-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{ex.duration_minutes} MIN</span>
+                    </div>
+                    <span className="text-slate-200 text-[10px]">•</span>
+                    <div className="flex items-center gap-1">
+                      <Calendar size={12} className="text-blue-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
+                        {ex.schedule_type === 'anytime' 
+                          ? 'Anytime' 
+                          : `${new Date(ex.start_time).toLocaleDateString()} · ${new Date(ex.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(ex.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -251,9 +270,29 @@ export default function ExamList() {
             </div>
             <div>
               <label className="label">Category</label>
-              <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} required>
+              <select 
+                className="input" 
+                value={EXAM_CATEGORIES.includes(form.category) ? form.category : "Other"} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm({ ...form, category: val === "Other" ? "" : val });
+                }} 
+                required
+              >
                 {EXAM_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                <option value="Other">Other (Custom)</option>
               </select>
+              {(!EXAM_CATEGORIES.includes(form.category) || form.category === "") && (
+                <div className="mt-3">
+                  <input 
+                    className="input animate-in fade-in slide-in-from-top-1" 
+                    placeholder="Type custom category..." 
+                    value={form.category} 
+                    onChange={(e) => setForm({ ...form, category: e.target.value })} 
+                    required 
+                  />
+                </div>
+              )}
             </div>
           </div>
           <div><label className="label">Title</label><input className="input" placeholder="Midterm Exam" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></div>
@@ -288,11 +327,25 @@ export default function ExamList() {
             <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
               <div>
                 <label className="label">Start Date & Time</label>
-                <input type="datetime-local" className="input" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} required={form.schedule_type === "scheduled"} />
+                <input 
+                  type="datetime-local" 
+                  className="input" 
+                  value={form.start_time} 
+                  onChange={(e) => setForm({ ...form, start_time: e.target.value })} 
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  required={form.schedule_type === "scheduled"} 
+                />
               </div>
               <div>
                 <label className="label">End Date & Time</label>
-                <input type="datetime-local" className="input" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} required={form.schedule_type === "scheduled"} />
+                <input 
+                  type="datetime-local" 
+                  className="input" 
+                  value={form.end_time} 
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })} 
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                  required={form.schedule_type === "scheduled"} 
+                />
               </div>
             </div>
           )}

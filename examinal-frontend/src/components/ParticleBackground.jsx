@@ -13,26 +13,38 @@ export default function ParticleBackground() {
     const particleCount = 100;
 
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const parent = canvas.parentElement;
+      if (parent) {
+        canvas.width = parent.offsetWidth;
+        canvas.height = parent.offsetHeight;
+        init();
+      }
     };
+
+    const resizeObserver = new ResizeObserver(() => {
+      resize();
+    });
 
     class Particle {
       constructor() {
+        this.init();
+      }
+
+      init() {
         this.x = Math.random() * canvas.width;
         this.y = Math.random() * canvas.height;
         this.baseX = this.x;
         this.baseY = this.y;
-        this.size = Math.random() * 2 + 1;
-        this.density = (Math.random() * 30) + 2;
+        this.size = Math.random() * 1.5 + 1;
+        this.density = (Math.random() * 20) + 2;
         
         const isBlue = Math.random() > 0.5;
         this.color = isBlue 
-          ? `rgba(37, 99, 235, ${0.3 + Math.random() * 0.4})`
-          : `rgba(6, 182, 212, ${0.3 + Math.random() * 0.4})`;
+          ? `rgba(59, 130, 246, ${0.4 + Math.random() * 0.3})`
+          : `rgba(6, 182, 212, ${0.4 + Math.random() * 0.3})`;
         
-        this.vx = (Math.random() - 0.5) * 1.2;
-        this.vy = (Math.random() - 0.5) * 1.2;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
       }
 
       draw() {
@@ -47,10 +59,8 @@ export default function ParticleBackground() {
         this.baseX += this.vx;
         this.baseY += this.vy;
 
-        if (this.baseX < 0) { this.baseX = 0; this.vx *= -1; }
-        if (this.baseX > canvas.width) { this.baseX = canvas.width; this.vx *= -1; }
-        if (this.baseY < 0) { this.baseY = 0; this.vy *= -1; }
-        if (this.baseY > canvas.height) { this.baseY = canvas.height; this.vy *= -1; }
+        if (this.baseX < 0 || this.baseX > canvas.width) this.vx *= -1;
+        if (this.baseY < 0 || this.baseY > canvas.height) this.vy *= -1;
 
         let dx = mouse.current.x - this.x;
         let dy = mouse.current.y - this.y;
@@ -66,13 +76,8 @@ export default function ParticleBackground() {
 
         let distToBaseX = this.baseX - this.x;
         let distToBaseY = this.baseY - this.y;
-        this.x += distToBaseX * 0.1;
-        this.y += distToBaseY * 0.1;
-
-        if (this.x < -10) this.x = -10;
-        if (this.x > canvas.width + 10) this.x = canvas.width + 10;
-        if (this.y < -10) this.y = -10;
-        if (this.y > canvas.height + 10) this.y = canvas.height + 10;
+        this.x += distToBaseX * 0.05;
+        this.y += distToBaseY * 0.05;
       }
     }
 
@@ -83,29 +88,64 @@ export default function ParticleBackground() {
       }
     };
 
+    const connect = () => {
+      for (let a = 0; a < particles.length; a++) {
+        // Connect to mouse
+        let mdx = mouse.current.x - particles[a].x;
+        let mdy = mouse.current.y - particles[a].y;
+        let mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+        if (mdist < 150) {
+          ctx.strokeStyle = `rgba(59, 130, 246, ${1 - mdist/150})`;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(particles[a].x, particles[a].y);
+          ctx.lineTo(mouse.current.x, mouse.current.y);
+          ctx.stroke();
+        }
+
+        for (let b = a; b < particles.length; b++) {
+          let dx = particles[a].x - particles[b].x;
+          let dy = particles[a].y - particles[b].y;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 100) {
+            ctx.strokeStyle = `rgba(59, 130, 246, ${1 - distance/100})`;
+            ctx.lineWidth = 0.3;
+            ctx.beginPath();
+            ctx.moveTo(particles[a].x, particles[a].y);
+            ctx.lineTo(particles[b].x, particles[b].y);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let i = 0; i < particles.length; i++) {
         particles[i].draw();
         particles[i].update();
       }
+      connect();
       animationFrameId = requestAnimationFrame(animate);
     };
 
     const handleMouseMove = (e) => {
-      mouse.current.x = e.clientX;
-      mouse.current.y = e.clientY;
+      const rect = canvas.getBoundingClientRect();
+      mouse.current.x = e.clientX - rect.left;
+      mouse.current.y = e.clientY - rect.top;
     };
 
-    window.addEventListener("resize", resize);
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
     window.addEventListener("mousemove", handleMouseMove);
 
     resize();
-    init();
     animate();
 
     return () => {
-      window.removeEventListener("resize", resize);
+      resizeObserver.disconnect();
       window.removeEventListener("mousemove", handleMouseMove);
       cancelAnimationFrame(animationFrameId);
     };

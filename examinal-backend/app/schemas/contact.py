@@ -44,6 +44,8 @@ class ContactMessage(BaseModel):
     email: str
     subject: str
     message: str
+    reply: Optional[str] = None
+    replied_at: Optional[datetime] = None
     created_at: datetime
     replies: List[ContactReply] = []
 

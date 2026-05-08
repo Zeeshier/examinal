@@ -1,5 +1,5 @@
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
 from datetime import datetime
 from app.database import Base
 
@@ -11,6 +11,9 @@ class ContactMessage(Base):
     email = Column(String(255), nullable=False)
     subject = Column(String(1000), nullable=True)
     message = Column(Text, nullable=False)
+    reply = Column(Text, nullable=True)
+    replied_at = Column(DateTime, nullable=True)
+    is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Many replies

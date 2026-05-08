@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session, joinedload
 from app.models.contact import ContactMessage, ContactReply
 from app.schemas.contact import ContactCreate
@@ -16,7 +18,11 @@ def create_contact_message(db: Session, msg: ContactCreate):
     return new_msg
 
 def get_all_contact_messages(db: Session):
-    return db.query(ContactMessage).options(joinedload(ContactMessage.replies)).order_by(ContactMessage.created_at.desc()).all()
+    messages = db.query(ContactMessage).options(joinedload(ContactMessage.replies)).order_by(ContactMessage.created_at.desc()).all()
+    # Mark unread as read
+    db.query(ContactMessage).filter(ContactMessage.is_read == False).update({"is_read": True})
+    db.commit()
+    return messages
 
 def reply_to_message(db: Session, message_id: int, reply_text: str):
     msg = db.query(ContactMessage).filter(ContactMessage.id == message_id).first()
@@ -29,6 +35,8 @@ def reply_to_message(db: Session, message_id: int, reply_text: str):
         content = reply_text
     )
     db.add(new_reply)
+    msg.reply = reply_text
+    msg.replied_at = datetime.utcnow()
     db.commit()
     db.refresh(new_reply)
 

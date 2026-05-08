@@ -51,7 +51,7 @@ function FeatureCard({ icon: Icon, title, desc, delay }) {
       {/* ── BORDER GLOW ── */}
       <div className="absolute -inset-[1px] bg-gradient-to-br from-blue-200/0 via-blue-300/0 to-cyan-200/0 group-hover:from-blue-300 group-hover:via-blue-200 group-hover:to-cyan-300 rounded-3xl transition-all duration-500 -z-10" />
 
-      <div className="h-full p-8 bg-white/90 border border-slate-200/70 backdrop-blur-xl rounded-3xl transition-all duration-300 group-hover:bg-white group-hover:border-blue-200 shadow-lg shadow-blue-900/5 group-hover:shadow-xl group-hover:shadow-blue-900/10">
+      <div className="h-full p-8 bg-blue-50/80 border-2 border-blue-100/50 backdrop-blur-xl rounded-3xl transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-blue-50 group-hover:via-white/60 group-hover:to-blue-50 group-hover:border-blue-200 shadow-lg shadow-blue-900/5 group-hover:shadow-xl group-hover:shadow-blue-900/10 group-hover:-translate-y-2">
         <div className="relative mb-8 inline-block">
           {/* Icon Glow */}
           <div className="absolute inset-0 bg-blue-400/20 blur-xl rounded-full -z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -69,6 +69,8 @@ function FeatureCard({ icon: Icon, title, desc, delay }) {
   );
 }
 
+
+import HeroSection from "../components/HeroSection";
 
 export default function Landing() {
   const features = [
@@ -111,79 +113,42 @@ export default function Landing() {
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white -mt-16">
-
+    <div className="relative min-h-screen overflow-hidden bg-blue-50/10 -mt-16">
       {/* ── PREMIUM TEXTURE OVERLAY ── */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-50 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-      {/* ── BACKDROP AMBIENCE ── */}
-      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-blue-400/20 rounded-full blur-[120px] -z-10" />
-
-      {/* ── HERO ── */}
-      <section className="relative z-10 min-h-[80vh] flex items-center justify-center pt-32 pb-8">
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-slate-950">
-          <img src="/hero-bg.png" alt="Neural Background" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/40 to-slate-950/80" />
-          <ParticleBackground />
+      <HeroSection 
+        height="min-h-[75vh]"
+        title="Assessments made"
+        highlight="intelligent."
+        subtitle="Empowering institutions with enterprise-grade AI examination layers, delivering secure exam protocols and automated multi-pass grading."
+      >
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16 pt-3">
+          <Link to="/register" className="group px-10 py-3 bg-blue-500 text-white rounded-xl font-black text-sm hover:scale-105 transition-all duration-300 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 flex items-center gap-3">
+            GET STARTED <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+          </Link>
+          <Link to="/features" className="px-8 py-3 border-b border-blue-400/30 text-blue-200 hover:text-white hover:border-white transition-all font-bold uppercase tracking-widest text-[10px]">
+            VIEW ALL FEATURES
+          </Link>
         </div>
-        <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-          {/* Main Content */}
-          <div className="max-w-3xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full mb-6 backdrop-blur-md shadow-sm shadow-black/10">
-                <Sparkles size={11} className="text-blue-400" />
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-200">NVIDIA Neural Infrastructure v4.0</span>
-              </div>
 
-              <div className="py-5">
-                <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-6">
-                  Assessments made <br />
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300 italic">
-                    intelligent.
-                  </span>
-                </h1>
-
-                <p className="text-base md:text-lg text-blue-100/80 max-w-xl mx-auto mb-8 leading-relaxed font-light">
-                  Empowering institutions with enterprise-grade AI examination layers, delivering secure exam protocols and automated multi-pass grading.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16 pt-3">
-                <Link to="/register" className="group px-10 py-3 bg-blue-500 text-white rounded-xl font-black text-sm hover:scale-105 transition-all duration-300 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 flex items-center gap-3">
-                  GET STARTED <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link to="/features" className="px-8 py-3 border-b border-blue-400/30 text-blue-200 hover:text-white hover:border-white transition-all font-bold uppercase tracking-widest text-[10px]">
-                  VIEW ALL FEATURES
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Subtle Metrics Bar */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 0.5 }}
-              className="flex justify-center gap-10 md:gap-16 opacity-90"
-            >
-              <div className="text-center">
-                <p className="text-2xl font-black text-white">10x</p>
-                <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Efficiency</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-white">99.8%</p>
-                <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Accurate</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-black text-white">SOTA</p>
-                <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Models</p>
-              </div>
-            </motion.div>
+        {/* Subtle Metrics Bar */}
+        <div className="flex justify-center gap-10 md:gap-16 opacity-90">
+          <div className="text-center">
+            <p className="text-2xl font-black text-white">10x</p>
+            <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Efficiency</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-black text-white">99.8%</p>
+            <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Accurate</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-black text-white">SOTA</p>
+            <p className="text-[8px] font-bold text-blue-400 uppercase tracking-widest">Models</p>
           </div>
         </div>
-      </section>
+      </HeroSection>
+
       {/* ── FEATURES ── */}
       <section className="py-20 border-t border-slate-100 relative z-10 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-6">
@@ -241,7 +206,7 @@ export default function Landing() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="text-center p-16 rounded-[3rem] bg-blue-600 border border-blue-500 backdrop-blur-3xl shadow-2xl shadow-blue-900/20 relative overflow-hidden"
+            className="text-center p-16 rounded-[3rem] bg-blue-600 border border-blue-500 backdrop-blur-3xl shadow-2xl shadow-blue-900/20 relative overflow-hidden transition-all duration-500 hover:bg-gradient-to-br hover:from-blue-600 hover:via-blue-500 hover:to-blue-700 group"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-50" />
 

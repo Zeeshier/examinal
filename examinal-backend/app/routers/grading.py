@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import InstructorUser
-from app.models.submission import ExamSubmission, AnswerResponse
+from app.models.submission import ExamSubmission, AnswerResponse, ScoreOverride
+from app.models.course import Course
+from app.models.exam import Exam
 from app.schemas.submission import SubmissionDetail, SubmissionOut, AnswerResponseOut
 from app.services.grading_service import GradingService
 from app.config import settings
@@ -21,6 +23,12 @@ def auto_grade(submission_id: int, user: InstructorUser, db: Session = Depends(g
     submission = db.query(ExamSubmission).filter(ExamSubmission.id == submission_id).first()
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
+    
+    exam = db.query(Exam).filter(Exam.id == submission.exam_id).first()
+    course = db.query(Course).filter(Course.id == exam.course_id).first() if exam else None
+    if course and course.instructor_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to grade this submission")
+
     if submission.status not in ("submitted", "graded"):
         raise HTTPException(status_code=400, detail="Submission not yet submitted")
 
@@ -36,6 +44,13 @@ def auto_grade(submission_id: int, user: InstructorUser, db: Session = Depends(g
 
 @router.post("/auto/exam/{exam_id}")
 def auto_grade_all(exam_id: int, user: InstructorUser, db: Session = Depends(get_db)):
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    course = db.query(Course).filter(Course.id == exam.course_id).first()
+    if course and course.instructor_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to grade this exam")
+
     submissions = (
         db.query(ExamSubmission)
         .filter(ExamSubmission.exam_id == exam_id, ExamSubmission.status == "submitted")
@@ -67,6 +82,13 @@ def get_low_confidence_answers(
     db: Session = Depends(get_db),
 ):
     """Get answers where AI grading confidence is below threshold — need human review."""
+    exam = db.query(Exam).filter(Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    course = db.query(Course).filter(Course.id == exam.course_id).first()
+    if course and course.instructor_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     submissions = (
         db.query(ExamSubmission)
         .filter(ExamSubmission.exam_id == exam_id, ExamSubmission.status == "graded")
@@ -111,6 +133,17 @@ def manual_override(
     answer = db.query(AnswerResponse).filter(AnswerResponse.id == answer_id).first()
     if not answer:
         raise HTTPException(status_code=404, detail="Answer not found")
+        
+    submission = db.query(ExamSubmission).filter(ExamSubmission.id == answer.submission_id).first()
+    if submission:
+        exam = db.query(Exam).filter(Exam.id == submission.exam_id).first()
+        course = db.query(Course).filter(Course.id == exam.course_id).first() if exam else None
+        if course and course.instructor_id != user.id and user.role != "admin":
+            raise HTTPException(status_code=403, detail="Not authorized to override this answer")
+    old_score = answer.score
+    old_feedback = answer.ai_feedback
+    old_confidence = answer.confidence_score
+
     answer.score = min(score, answer.max_score)
     answer.is_correct = score >= (answer.max_score * 0.7)
     answer.confidence_score = 1.0  # Manual = full confidence
@@ -118,6 +151,17 @@ def manual_override(
         answer.ai_feedback = f"[Instructor override] {feedback}"
     else:
         answer.ai_feedback = (answer.ai_feedback or "") + " [Score overridden by instructor]"
+    db.add(ScoreOverride(
+        answer_id=answer.id,
+        submission_id=answer.submission_id,
+        reviewer_id=user.id,
+        old_score=old_score,
+        new_score=answer.score,
+        old_feedback=old_feedback,
+        new_feedback=answer.ai_feedback,
+        old_confidence=old_confidence,
+        reason=feedback,
+    ))
     db.commit()
 
     # Recalculate submission totals

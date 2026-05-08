@@ -13,6 +13,7 @@ class CourseCreate(BaseModel):
 class CourseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    code: Optional[str] = Field(None, min_length=2, max_length=30)
 
 
 class CourseOut(BaseModel):

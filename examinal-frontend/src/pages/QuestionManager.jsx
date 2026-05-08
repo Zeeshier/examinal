@@ -23,8 +23,11 @@ export default function QuestionManager() {
     optA: "", optB: "", optC: "", optD: "",
   });
 
+  const [genConfigs, setGenConfigs] = useState([
+    { id: 1, num_questions: 5, question_type: "mcq", marks: 1 }
+  ]);
   const [genForm, setGenForm] = useState({
-    num_questions: 5, question_type: "mcq", difficulty: "medium", topic: "",
+    difficulty: "medium", topic: "",
   });
 
   const load = async () => {
@@ -45,8 +48,12 @@ export default function QuestionManager() {
     setForm({ question_text: "", question_type: "mcq", correct_answer: "", marks: 1, difficulty: "medium", explanation: "", optA: "", optB: "", optC: "", optD: "" });
   };
 
-  const saveQuestion = async (e) => {
+  const saveQuestion = async (e, addAnother = false) => {
     e.preventDefault();
+    if (!form.correct_answer) {
+        toast.error("Please specify the correct answer.");
+        return;
+    }
     const payload = {
       exam_id: parseInt(examId),
       question_text: form.question_text,
@@ -65,9 +72,16 @@ export default function QuestionManager() {
         await API.post("/api/questions/", payload);
         toast.success("Question added");
       }
-      setShowAdd(false);
+      
+      if (!addAnother) {
+        setShowAdd(false);
+      }
       setEditQ(null);
-      resetForm();
+      if (addAnother) {
+        setForm({ ...form, question_text: "", correct_answer: "", explanation: "", optA: "", optB: "", optC: "", optD: "" });
+      } else {
+        resetForm();
+      }
       load();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed");
@@ -100,15 +114,23 @@ export default function QuestionManager() {
   const generateAI = async (e) => {
     e.preventDefault();
     setGenBusy(true);
+    let totalGenerated = 0;
     try {
-      const payload = {
-        course_id: exam.course_id,
-        exam_id: parseInt(examId),
-        ...genForm,
-        num_questions: parseInt(genForm.num_questions),
-      };
-      const { data } = await API.post("/api/questions/generate", payload);
-      toast.success(`Generated ${data.length} questions`);
+      for (const config of genConfigs) {
+        if (config.num_questions <= 0) continue;
+        const payload = {
+          course_id: exam.course_id,
+          exam_id: parseInt(examId),
+          difficulty: genForm.difficulty,
+          topic: genForm.topic,
+          num_questions: parseInt(config.num_questions),
+          question_type: config.question_type,
+          marks: parseFloat(config.marks),
+        };
+        const { data } = await API.post("/api/questions/generate", payload);
+        totalGenerated += data.length;
+      }
+      toast.success(`Generated ${totalGenerated} questions`);
       setShowGen(false);
       load();
     } catch (err) {
@@ -234,74 +256,127 @@ export default function QuestionManager() {
             </div>
           </div>
           {form.question_type === "mcq" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               {["A", "B", "C", "D"].map((k) => (
-                <div key={k}>
-                  <label className="label">Option {k}</label>
-                  <input className="input" value={form[`opt${k}`]} onChange={(e) => setForm({ ...form, [`opt${k}`]: e.target.value })} required />
+                <div key={k} className="relative">
+                  <label className="label flex items-center gap-2 mb-1 cursor-pointer w-max">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                      checked={form.correct_answer.split(',').includes(k)}
+                      onChange={(e) => {
+                        let current = form.correct_answer ? form.correct_answer.split(',') : [];
+                        if (e.target.checked) {
+                            if (!current.includes(k)) current.push(k);
+                        } else {
+                            current = current.filter(ans => ans !== k);
+                        }
+                        setForm({ ...form, correct_answer: current.sort().join(',') });
+                      }}
+                    />
+                    Option {k} {form.correct_answer.split(',').includes(k) && <span className="text-[10px] text-emerald-600 font-bold">(Correct)</span>}
+                  </label>
+                  <input className={`input ${form.correct_answer.split(',').includes(k) ? 'border-emerald-300 bg-emerald-50/30' : ''}`} value={form[`opt${k}`]} onChange={(e) => setForm({ ...form, [`opt${k}`]: e.target.value })} required />
                 </div>
               ))}
             </div>
           )}
-          <div>
-            <label className="label">Correct Answer {form.question_type === "mcq" && "(A/B/C/D)"}</label>
-            <input className="input" value={form.correct_answer} onChange={(e) => setForm({ ...form, correct_answer: e.target.value })} required />
-          </div>
+          {form.question_type !== "mcq" && (
+            <div>
+              <label className="label">Correct Answer / Model Answer</label>
+              <textarea className="input min-h-[60px]" value={form.correct_answer} onChange={(e) => setForm({ ...form, correct_answer: e.target.value })} required />
+            </div>
+          )}
           <div>
             <label className="label">Explanation (optional)</label>
             <textarea className="input min-h-[60px]" value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" className="btn-outline" onClick={() => { setShowAdd(false); setEditQ(null); }}>Cancel</button>
-            <button type="submit" className="btn-primary">{editQ ? "Update" : "Add Question"}</button>
+            {!editQ && (
+              <button type="button" className="btn-outline text-blue-600 border-blue-200 hover:bg-blue-50" onClick={(e) => saveQuestion(e, true)}>Save & Add Another</button>
+            )}
+            <button type="button" className="btn-primary" onClick={(e) => saveQuestion(e, false)}>{editQ ? "Update" : "Add Question"}</button>
           </div>
         </form>
       </Modal>
 
       {/* AI Generate modal */}
-      <Modal open={showGen} onClose={() => setShowGen(false)} title="Generate Questions with AI">
-        <form onSubmit={generateAI} className="space-y-4">
-          <div className="card p-4 bg-blue-50 border-blue-200">
-            <p className="text-sm text-blue-700">
-              AI will use your uploaded course content to generate relevant questions using RAG.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Number of Questions</label>
-              <input className="input" type="number" min="1" max="50" value={genForm.num_questions} onChange={(e) => setGenForm({ ...genForm, num_questions: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Question Type</label>
-              <select className="input" value={genForm.question_type} onChange={(e) => setGenForm({ ...genForm, question_type: e.target.value })}>
-                <option value="mcq">MCQ</option>
-                <option value="short_answer">Short Answer</option>
-                <option value="descriptive">Descriptive</option>
-                <option value="mixed">Mixed</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label">Difficulty</label>
-            <select className="input" value={genForm.difficulty} onChange={(e) => setGenForm({ ...genForm, difficulty: e.target.value })}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-              <option value="mixed">Mixed</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Topic Focus (optional)</label>
-            <input className="input" placeholder="e.g. Binary Trees, Sorting Algorithms" value={genForm.topic} onChange={(e) => setGenForm({ ...genForm, topic: e.target.value })} />
-          </div>
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button type="button" className="btn-outline" onClick={() => setShowGen(false)}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={genBusy}>
-              {genBusy ? <><Loader2 size={16} className="animate-spin" /> Generating...</> : <><Sparkles size={16} /> Generate</>}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {(() => {
+        const totalGenMarks = genConfigs.reduce((acc, c) => acc + (parseFloat(c.num_questions || 0) * parseFloat(c.marks || 0)), 0);
+        const remainingMarks = (exam?.total_marks || 0) - currentTotalMarks - totalGenMarks;
+        
+        return (
+          <Modal open={showGen} onClose={() => setShowGen(false)} title="Generate Questions with AI">
+            <form onSubmit={generateAI} className="space-y-4">
+              <div className="card p-4 bg-blue-50 border-blue-200">
+                <p className="text-sm text-blue-700">
+                  AI will use your uploaded course content to generate relevant questions. Queue multiple question types below!
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="label mb-0">Configuration Queue</label>
+                  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${remainingMarks < 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    {remainingMarks < 0 ? `Over Limit: ${Math.abs(remainingMarks)} pts` : `Remaining: ${remainingMarks} pts`}
+                  </div>
+                </div>
+                {genConfigs.map((config, index) => (
+                  <div key={config.id} className="flex gap-3 items-center">
+                    <div className="flex-1 grid grid-cols-3 gap-3">
+                      <div className="relative">
+                          <input type="number" min="1" className="input pr-12" placeholder="Count" value={config.num_questions} onChange={(e) => { const newC = [...genConfigs]; newC[index].num_questions = e.target.value; setGenConfigs(newC); }} />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">QTY</span>
+                      </div>
+                      <select className="input" value={config.question_type} onChange={(e) => { const newC = [...genConfigs]; newC[index].question_type = e.target.value; setGenConfigs(newC); }}>
+                        <option value="mcq">MCQ</option>
+                        <option value="short_answer">Short Answer</option>
+                        <option value="descriptive">Descriptive</option>
+                      </select>
+                      <div className="relative">
+                         <input type="number" step="0.5" className="input pr-12" placeholder="Marks" value={config.marks} onChange={(e) => { const newC = [...genConfigs]; newC[index].marks = e.target.value; setGenConfigs(newC); }} />
+                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">PTS</span>
+                      </div>
+                    </div>
+                    {genConfigs.length > 1 && (
+                      <button type="button" onClick={() => setGenConfigs(genConfigs.filter(c => c.id !== config.id))} className="w-11 h-11 shrink-0 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={() => setGenConfigs([...genConfigs, { id: Date.now(), num_questions: 1, question_type: "short_answer", marks: 3 }])} className="text-xs font-bold text-blue-600 flex items-center gap-1.5 hover:text-blue-800 transition-colors mt-1 px-1">
+                  <Plus size={14} /> ADD ANOTHER TYPE
+                </button>
+              </div>
+              <div>
+                <label className="label">Difficulty</label>
+                <select className="input" value={genForm.difficulty} onChange={(e) => setGenForm({ ...genForm, difficulty: e.target.value })}>
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Topic Focus (optional)</label>
+                <input className="input" placeholder="e.g. Binary Trees, Sorting Algorithms" value={genForm.topic} onChange={(e) => setGenForm({ ...genForm, topic: e.target.value })} />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <div className="mr-auto text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">
+                  Total for this batch: {totalGenMarks} pts
+                </div>
+                <button type="button" className="btn-outline" onClick={() => setShowGen(false)}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={genBusy || remainingMarks < 0}>
+                  {genBusy ? <><Loader2 size={16} className="animate-spin" /> Generating...</> : <><Sparkles size={16} /> Generate</>}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import String, Boolean, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +17,11 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="student")  # admin | instructor | student
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # ── Lockout fields ──
+    failed_login_count: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -28,3 +34,5 @@ class User(Base):
     enrollments = relationship("CourseEnrollment", back_populates="student", lazy="selectin")
     submissions = relationship("ExamSubmission", back_populates="student", lazy="selectin")
     activity_logs = relationship("ActivityLog", back_populates="user", lazy="selectin")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")

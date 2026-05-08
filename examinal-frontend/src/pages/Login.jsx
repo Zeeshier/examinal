@@ -42,7 +42,7 @@ export default function Login() {
   return (
     <div className="">
       <div className="mb-10 text-center lg:text-left">
-        <h2 className="text-4xl font-black text-navy-950 mb-3 tracking-tight uppercase">Welcome back</h2>
+        <h2 className="text-4xl font-medium text-navy-950 mb-3 tracking-tight uppercase">Welcome back</h2>
         <p className="text-slate-600 font-light text-lg">Sign in to your node to continue.</p>
       </div>
 
@@ -87,6 +87,11 @@ export default function Login() {
               {errors.password}
             </p>
           )}
+          <div className="flex justify-end mt-1">
+            <Link to="/forgot-password" className="text-[11px] text-blue-500 hover:text-blue-700 font-semibold transition-colors">
+              Forgot password?
+            </Link>
+          </div>
         </div>
 
         <button 

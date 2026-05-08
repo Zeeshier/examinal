@@ -15,51 +15,40 @@ function InfoCard({ icon: Icon, title, desc, delay, className = "" }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay }}
-      className={`group p-8 rounded-3xl bg-white/90 border border-slate-200/70 shadow-lg shadow-blue-900/5 backdrop-blur-xl hover:bg-white hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/10 transition-all duration-300 ${className}`}
+      className={`group relative ${className}`}
     >
-      <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center mb-6 text-blue-600 shadow-sm shadow-blue-900/5 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
-        <Icon size={24} />
+      {/* ── BORDER GLOW ── */}
+      <div className="absolute -inset-[1px] bg-gradient-to-br from-blue-200/0 via-blue-300/0 to-cyan-200/0 group-hover:from-blue-300 group-hover:via-blue-200 group-hover:to-cyan-300 rounded-3xl transition-all duration-500 -z-10" />
+
+      <div className="h-full p-8 rounded-3xl bg-blue-50/80 border-2 border-blue-100/50 shadow-lg shadow-blue-900/5 backdrop-blur-xl group-hover:bg-gradient-to-br group-hover:from-blue-50 group-hover:via-white/60 group-hover:to-blue-50 group-hover:border-blue-200 group-hover:shadow-xl group-hover:shadow-blue-900/10 group-hover:-translate-y-2 transition-all duration-300">
+        <div className="w-12 h-12 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-center mb-6 text-blue-600 shadow-sm shadow-blue-900/5 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+          <Icon size={24} />
+        </div>
+        <h3 className="text-xl font-black text-navy-950 mb-3 tracking-tight">{title}</h3>
+        <p className="text-sm text-slate-600 leading-relaxed font-light group-hover:text-slate-700 transition-colors">{desc}</p>
       </div>
-      <h3 className="text-xl font-black text-navy-950 mb-3 tracking-tight">{title}</h3>
-      <p className="text-sm text-slate-600 leading-relaxed font-light group-hover:text-slate-700 transition-colors">{desc}</p>
     </motion.div>
   );
 }
 
+import HeroSection from "../components/HeroSection";
+
 export default function About() {
   return (
-    <div className="pt-8 pb-16 relative overflow-hidden bg-white">
-      {/* ── AMBIENT BACKDROP ── */}
-      <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden z-0 pointer-events-none opacity-60">
-        <ParticleBackground />
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white to-transparent" />
-      </div>
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-400/10 rounded-full blur-[150px] -z-10" />
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-400/10 rounded-full blur-[120px] -z-10" />
+    <div className="relative min-h-screen overflow-hidden bg-blue-50/10 -mt-16">
+      {/* ── PREMIUM TEXTURE OVERLAY ── */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none z-50 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        {/* ── HEADER ── */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-10 pt-8"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full mb-8 backdrop-blur-md shadow-sm shadow-blue-900/5">
-            <Sparkles size={11} className="text-blue-600" />
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-600">The Platform</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black text-navy-950 mb-8 tracking-tighter">
-            Better Exams <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 italic">
-              Simple & Secure.
-            </span>
-          </h1>
-          <p className="text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto font-light">
-            Developed by students at the University of Lahore, Sargodha Campus, Examinal is a state-of-the-art assessment platform utilizing RAG (Retrieval-Augmented Generation) to empower educators with automated grading and secure exam protocols.
-          </p>
-        </motion.div>
+      <HeroSection 
+        height="min-h-[50vh]"
+        tag="The Platform"
+        title="Better Exams"
+        highlight="Simple & Secure."
+        subtitle="Developed by students at the University of Lahore, Sargodha Campus, Examinal is a state-of-the-art assessment platform utilizing RAG (Retrieval-Augmented Generation) to empower educators with automated grading and secure exam protocols."
+      />
+
+      <div className="max-w-7xl mx-auto px-6 relative z-10 py-16">
+
 
         {/* ── MISSION & VALUES (BENTO) ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24">
@@ -88,7 +77,7 @@ export default function About() {
           initial={{ opacity: 0, scale: 0.98 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="p-10 md:p-16 rounded-[3rem] bg-blue-600 border border-blue-500 shadow-2xl shadow-blue-900/20 backdrop-blur-3xl relative overflow-hidden"
+          className="p-10 md:p-16 rounded-[3rem] bg-blue-600 border border-blue-500 shadow-2xl shadow-blue-900/20 backdrop-blur-3xl relative overflow-hidden transition-all duration-500 hover:bg-gradient-to-br hover:from-blue-600 hover:via-blue-500 hover:to-blue-700 hover:-translate-y-1 group"
         >
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent" />
           

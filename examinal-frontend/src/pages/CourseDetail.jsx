@@ -8,7 +8,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import {
   BookOpen, FileText, Upload, Users, UserPlus,
   BarChart3, ArrowRight, Trash2, Search, X,
-  CheckCircle, GraduationCap, Mail,
+  CheckCircle, GraduationCap, Mail, Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -27,15 +27,23 @@ export default function CourseDetail() {
   const [searching, setSearching] = useState(false);
   const [enrolling, setEnrolling] = useState(null); // student id being enrolled
 
+  // Edit state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ title: "", code: "", description: "" });
+  const [updating, setUpdating] = useState(false);
+
   const isInstructor = user.role === "instructor";
   const isAdmin = user.role === "admin";
-  const canManage = isInstructor;
+  // Admin can now edit any course (backend updated to allow it)
+  const isOwner = isInstructor && course && course.instructor_id === user.id;
+  const canManage = isOwner || isAdmin;
   const canSeeAudit = isInstructor || isAdmin;
 
   const load = useCallback(async () => {
     try {
       const { data: c } = await API.get(`/api/courses/${courseId}`);
       setCourse(c);
+      setEditForm({ title: c.title, code: c.code, description: c.description || "" });
       const { data: ex } = await API.get("/api/exams/", { params: { course_id: courseId } });
       setExams(ex);
       if (canSeeAudit) {
@@ -51,6 +59,20 @@ export default function CourseDetail() {
   }, [courseId, isInstructor]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      await API.patch(`/api/courses/${courseId}`, editForm);
+      toast.success("Course updated");
+      setShowEdit(false);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Update failed");
+    }
+    setUpdating(false);
+  };
 
   // ── Student Search ──
   const searchStudents = useCallback(async (query) => {
@@ -138,6 +160,9 @@ export default function CourseDetail() {
         actions={
           canManage && (
             <div className="flex gap-3">
+              <button onClick={() => setShowEdit(true)} className="btn-outline">
+                <Pencil size={16} /> Edit
+              </button>
               <Link to={`/courses/${courseId}/content`} className="btn-outline">
                 <Upload size={16} /> Content
               </Link>
@@ -260,6 +285,44 @@ export default function CourseDetail() {
         )}
       </div>
 
+      {/* ── Edit Course Modal ── */}
+      <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Course">
+        <form onSubmit={handleUpdate} className="space-y-4">
+          <div>
+            <label className="label">Title</label>
+            <input
+              className="input"
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Code</label>
+            <input
+              className="input"
+              value={editForm.code}
+              onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Description</label>
+            <textarea
+              className="input min-h-[100px]"
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button type="button" className="btn-outline" onClick={() => setShowEdit(false)}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={updating}>
+              {updating ? "Updating..." : "Update Course"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* ── Enroll Student Modal ── */}
       <Modal
         open={showEnroll}
@@ -359,3 +422,4 @@ export default function CourseDetail() {
     </div>
   );
 }
+

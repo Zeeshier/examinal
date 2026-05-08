@@ -81,19 +81,22 @@ export default function ExamBrowse() {
           <div className="flex-1 min-w-0 overflow-hidden">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 ml-1">Filter by Category</p>
             <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-              {EXAM_CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className={`px-6 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex-shrink-0 ${
-                    category.toLowerCase() === cat.toLowerCase() 
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" 
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60 hover:border-slate-300"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+              {(() => {
+                const available = new Set([...EXAM_CATEGORIES, ...exams.map(e => e.category).filter(Boolean)]);
+                return Array.from(available).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className={`px-6 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex-shrink-0 ${
+                      category.toLowerCase() === cat.toLowerCase() 
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" 
+                        : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60 hover:border-slate-300"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 
@@ -167,7 +170,9 @@ export default function ExamBrowse() {
                   <div className="flex items-center gap-3 text-slate-500">
                     <Calendar size={16} className="text-blue-500" />
                     <span className="text-xs font-medium uppercase tracking-widest">
-                      {ex.start_time ? new Date(ex.start_time).toLocaleDateString() : "Anytime"}
+                      {ex.schedule_type === 'anytime' 
+                        ? 'Anytime' 
+                        : `${new Date(ex.start_time).toLocaleDateString()} · ${new Date(ex.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(ex.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                     </span>
                   </div>
                 </div>

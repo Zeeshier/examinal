@@ -1,5 +1,10 @@
 """
-Course CRUD + enrollment — with student search and flexible enrollment.
+Course CRUD + enrollment — with course ownership enforcement.
+
+Ownership policy:
+  - Admin: full access to all courses (read, write, enroll, delete)
+  - Instructor: only their own courses
+  - Student: enrolled courses only (read-only)
 """
 
 from typing import List, Optional
@@ -18,6 +23,17 @@ from app.schemas.course import (
 )
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
+
+
+# ── Helper: resolve course + enforce ownership ─────────────────────────────────
+def _get_course_or_403(course_id: int, user: User, db: Session) -> Course:
+    """Fetch a course and raise 403 if the user doesn't own it (unless admin)."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    if user.role == "instructor" and course.instructor_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your course")
+    return course
 
 
 # ═══════════════════════════════════════════
@@ -39,11 +55,11 @@ def create_course(payload: CourseCreate, user: InstructorUser, db: Session = Dep
 
 @router.get("/", response_model=List[CourseOut])
 def list_courses(current_user: CurrentUser, db: Session = Depends(get_db)):
-    if current_user.role in ("admin",):
+    if current_user.role == "admin":
         return db.query(Course).all()
     if current_user.role == "instructor":
         return db.query(Course).filter(Course.instructor_id == current_user.id).all()
-    # student — enrolled courses
+    # student — enrolled courses only
     enrollments = db.query(CourseEnrollment).filter(
         CourseEnrollment.student_id == current_user.id
     ).all()
@@ -58,21 +74,42 @@ def get_course(course_id: int, current_user: CurrentUser, db: Session = Depends(
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+
+    if current_user.role == "admin":
+        return course
+
+    if current_user.role == "instructor":
+        if course.instructor_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view this course")
+        return course
+
+    # student — must be enrolled
+    enrolled = db.query(CourseEnrollment).filter(
+        CourseEnrollment.course_id == course_id,
+        CourseEnrollment.student_id == current_user.id,
+    ).first()
+    if not enrolled:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course")
     return course
 
 
 @router.patch("/{course_id}", response_model=CourseOut)
 def update_course(
-    course_id: int, payload: CourseUpdate,
-    user: InstructorUser, db: Session = Depends(get_db),
+    course_id: int,
+    payload: CourseUpdate,
+    user: CurrentUser,  # admin OR instructor allowed
+    db: Session = Depends(get_db),
 ):
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if user.role != "instructor":
-        raise HTTPException(status_code=403, detail="Only instructors can edit course details")
-    if course.instructor_id != user.id and user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not your course")
+    if user.role not in ("admin", "instructor"):
+        raise HTTPException(status_code=403, detail="Only instructors or admins can edit courses")
+    course = _get_course_or_403(course_id, user, db)
+
+    # Check for duplicate code if code is being updated
+    if payload.code and payload.code != course.code:
+        existing = db.query(Course).filter(Course.code == payload.code).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Course code already exists")
+
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(course, k, v)
     db.commit()
@@ -81,12 +118,10 @@ def update_course(
 
 
 @router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_course(course_id: int, user: InstructorUser, db: Session = Depends(get_db)):
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if course.instructor_id != user.id and user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not your course")
+def delete_course(course_id: int, user: CurrentUser, db: Session = Depends(get_db)):
+    if user.role not in ("admin", "instructor"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    course = _get_course_or_403(course_id, user, db)
     db.delete(course)
     db.commit()
 
@@ -100,13 +135,12 @@ def delete_course(course_id: int, user: InstructorUser, db: Session = Depends(ge
 def search_students(
     course_id: int,
     q: str = Query(default="", min_length=0, description="Search by name, email, or username"),
-    user: InstructorUser = None,
+    user: InstructorUser = None,  # InstructorUser is Annotated[User, Depends(...)]
     db: Session = Depends(get_db),
 ):
-    """
-    Search for students to enroll.
-    Returns students NOT already enrolled in this course.
-    """
+    """Search for students to enroll. Returns students NOT already enrolled."""
+    _get_course_or_403(course_id, user, db)
+
     # Get already enrolled student IDs
     enrolled_ids = [
         e.student_id for e in
@@ -117,11 +151,9 @@ def search_students(
 
     query = db.query(User).filter(User.role == "student", User.is_active == True)  # noqa: E712
 
-    # Exclude already enrolled
     if enrolled_ids:
         query = query.filter(User.id.notin_(enrolled_ids))
 
-    # Apply search filter
     if q and q.strip():
         search = f"%{q.strip()}%"
         query = query.filter(
@@ -133,14 +165,8 @@ def search_students(
         )
 
     students = query.limit(20).all()
-
     return [
-        {
-            "id": s.id,
-            "full_name": s.full_name,
-            "email": s.email,
-            "username": s.username,
-        }
+        {"id": s.id, "full_name": s.full_name, "email": s.email, "username": s.username}
         for s in students
     ]
 
@@ -156,28 +182,23 @@ def _resolve_student(payload: EnrollmentCreate, db: Session) -> User:
 
     if payload.student_id:
         student = db.query(User).filter(
-            User.id == payload.student_id,
-            User.role == "student",
+            User.id == payload.student_id, User.role == "student",
         ).first()
 
     if not student and payload.username:
         student = db.query(User).filter(
-            User.username == payload.username,
-            User.role == "student",
+            User.username == payload.username, User.role == "student",
         ).first()
 
     if not student and payload.email:
         student = db.query(User).filter(
-            User.email == payload.email,
-            User.role == "student",
+            User.email == payload.email, User.role == "student",
         ).first()
 
-    # Last resort: try the student_id as username search
+    # Last resort: maybe they typed a username into the ID field
     if not student and payload.student_id:
-        # Maybe they typed a username into the ID field
         student = db.query(User).filter(
-            User.username == str(payload.student_id),
-            User.role == "student",
+            User.username == str(payload.student_id), User.role == "student",
         ).first()
 
     return student
@@ -187,16 +208,12 @@ def _resolve_student(payload: EnrollmentCreate, db: Session) -> User:
 def enroll_student(
     course_id: int,
     payload: EnrollmentCreate,
-    user: InstructorUser,
+    user: InstructorUser,       # properly injected
     db: Session = Depends(get_db),
 ):
-    if user.role != "instructor":
-        raise HTTPException(status_code=403, detail="Only instructors can enroll students")
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    """Enroll a student. Only the course owner or admin can do this."""
+    _get_course_or_403(course_id, user, db)
 
-    # Resolve student from ID, username, or email
     student = _resolve_student(payload, db)
     if not student:
         raise HTTPException(
@@ -204,7 +221,6 @@ def enroll_student(
             detail="Student not found. Search by name, email, or username using the search field.",
         )
 
-    # Check duplicate enrollment
     existing = (
         db.query(CourseEnrollment)
         .filter(
@@ -235,10 +251,12 @@ def enroll_student(
 @router.get("/{course_id}/students")
 def list_enrolled(
     course_id: int,
-    user: InstructorUser = None,
+    user: InstructorUser,       # properly injected — admin or instructor only
     db: Session = Depends(get_db),
 ):
-    """List enrolled students with their names and details."""
+    """List enrolled students. Only the course owner or admin can view the roster."""
+    _get_course_or_403(course_id, user, db)
+
     enrollments = (
         db.query(CourseEnrollment)
         .filter(CourseEnrollment.course_id == course_id)
@@ -262,12 +280,14 @@ def list_enrolled(
 
 @router.delete("/{course_id}/enroll/{student_id}", status_code=204)
 def unenroll_student(
-    course_id: int, student_id: int,
-    user: InstructorUser,
+    course_id: int,
+    student_id: int,
+    user: InstructorUser,       # properly injected
     db: Session = Depends(get_db),
 ):
-    if user.role != "instructor":
-        raise HTTPException(status_code=403, detail="Only instructors can unenroll students")
+    """Unenroll a student. Only the course owner or admin can do this."""
+    _get_course_or_403(course_id, user, db)
+
     enrollment = (
         db.query(CourseEnrollment)
         .filter(

@@ -1,10 +1,12 @@
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import {
   LayoutDashboard, BookOpen, FileText, Users,
   ClipboardList, Activity,
   Award, TrendingUp, LogOut, MessageSquare,
-  Eye, ClipboardCheck
+  Eye, ClipboardCheck, KeyRound
 } from "lucide-react";
 
 const linkClass = ({ isActive }) =>
@@ -16,14 +18,24 @@ const linkClass = ({ isActive }) =>
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const [badges, setBadges] = useState({});
+  const location = useLocation();
+
+  useEffect(() => {
+    if (user) {
+      API.get("/api/users/me/sidebar-badges")
+        .then((res) => setBadges(res.data))
+        .catch(() => {});
+    }
+  }, [user, location.pathname]);
 
   const adminLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/users", icon: Users, label: "Users" },
     { to: "/courses", icon: BookOpen, label: "Courses" },
     { to: "/exams", icon: FileText, label: "Exams" },
-    { to: "/contact-messages", icon: MessageSquare, label: "Contacts" },
-    { to: "/messages", icon: MessageSquare, label: "Messages" },
+    { to: "/contact-messages", icon: MessageSquare, label: "Contacts", badgeKey: "contact-messages" },
+    { to: "/messages", icon: MessageSquare, label: "Messages", badgeKey: "messages" },
     { to: "/activity-logs", icon: Activity, label: "Activity Logs" },
   ];
 
@@ -31,16 +43,16 @@ export default function Sidebar() {
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/courses", icon: BookOpen, label: "My Courses" },
     { to: "/exams", icon: FileText, label: "My Exams" },
-    { to: "/enrollment-requests", icon: ClipboardCheck, label: "Requests" },
-    { to: "/messages", icon: MessageSquare, label: "Messages" },
+    { to: "/enrollment-requests", icon: ClipboardCheck, label: "Requests", badgeKey: "enrollment-requests" },
+    { to: "/messages", icon: MessageSquare, label: "Messages", badgeKey: "messages" },
   ];
 
   const studentLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/browse-exams", icon: Eye, label: "Browse Exams" },
-    { to: "/exams", icon: ClipboardList, label: "My Exams" },
+    { to: "/exams", icon: ClipboardList, label: "My Exams", badgeKey: "exams" },
     { to: "/my-results", icon: Award, label: "Results" },
-    { to: "/messages", icon: MessageSquare, label: "Messages" },
+    { to: "/messages", icon: MessageSquare, label: "Messages", badgeKey: "messages" },
     { to: "/performance", icon: TrendingUp, label: "Performance" },
   ];
 
@@ -64,8 +76,17 @@ export default function Sidebar() {
         <p className="px-4 py-2 text-[10px] text-slate-600 uppercase tracking-widest font-semibold">Menu</p>
         {links.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.to === "/dashboard"} className={linkClass}>
-            <l.icon size={18} />
-            {l.label}
+            {({ isActive }) => (
+              <>
+                <l.icon size={18} />
+                <span className="flex-1 text-left">{l.label}</span>
+                {!isActive && l.badgeKey && badges[l.badgeKey] > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-sm shadow-red-500/40">
+                    {badges[l.badgeKey] > 99 ? "99+" : badges[l.badgeKey]}
+                  </span>
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -81,6 +102,19 @@ export default function Sidebar() {
             <p className="text-xs text-slate-500 capitalize">{user?.role}</p>
           </div>
         </div>
+        <NavLink
+          to="/change-password"
+          className={({ isActive }) =>
+            `flex items-center gap-2 w-full px-4 py-2 text-sm font-medium rounded-xl transition-all ${
+              isActive
+                ? "bg-blue-600/10 text-blue-400"
+                : "text-slate-500 hover:text-blue-400 hover:bg-blue-500/10"
+            }`
+          }
+        >
+          <KeyRound size={16} />
+          Change Password
+        </NavLink>
         <button
           onClick={logout}
           className="flex items-center gap-2 w-full px-4 py-2 text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"

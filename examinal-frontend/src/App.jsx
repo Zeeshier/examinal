@@ -12,6 +12,9 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import ChangePassword from "./pages/ChangePassword";
 import Dashboard from "./pages/Dashboard";
 import UserManagement from "./pages/UserManagement";
 import ContactMessages from "./pages/ContactMessages";
@@ -70,11 +73,15 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
       </Route>
 
-      {/* Auth */}
+      {/* Auth — public, standalone pages */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
       </Route>
+
+      {/* Password recovery — no layout wrapper needed */}
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Dashboard — all authenticated */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
@@ -84,6 +91,7 @@ export default function App() {
         <Route path="/performance" element={<StudentPerformance />} />
         <Route path="/performance/:studentId" element={<StudentPerformance />} />
         <Route path="/messages" element={<Messages />} />
+        <Route path="/change-password" element={<ChangePassword />} />
       </Route>
 
       {/* Admin only */}

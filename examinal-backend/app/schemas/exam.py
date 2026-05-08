@@ -18,6 +18,7 @@ class ExamCreate(BaseModel):
     max_attempts: int = Field(default=1, ge=1, le=10)
     category: str = "General"
     schedule_type: str = "anytime" # anytime or scheduled
+    is_archived: bool = False
 
 
 class ExamUpdate(BaseModel):
@@ -33,6 +34,7 @@ class ExamUpdate(BaseModel):
     max_attempts: Optional[int] = None
     category: Optional[str] = None
     schedule_type: Optional[str] = None
+    is_archived: Optional[bool] = None
 
 
 class ExamOut(BaseModel):
@@ -52,6 +54,7 @@ class ExamOut(BaseModel):
     max_attempts: int
     category: str
     schedule_type: str
+    is_archived: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

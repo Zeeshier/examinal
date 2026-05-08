@@ -1,205 +1,239 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Send, Mail, MapPin, MessageSquare, Sparkles, ArrowRight, AlertCircle } from "lucide-react";
+import { Send, Mail, MapPin, MessageSquare, ArrowRight, Clock } from "lucide-react";
 import toast from "react-hot-toast";
-import API from "../api/axios";
-import ParticleBackground from "../components/ParticleBackground";
+import API, { formatError } from "../api/axios";
+import HeroSection from "../components/HeroSection";
 
-const contactValidators = {
-  name: (v) => (!v || !v.trim()) ? "Name is required" : v.trim().length < 2 ? "Name must be at least 2 characters" : "",
-  email: (v) => (!v || !v.trim()) ? "Email is required" : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? "Enter a valid email" : "",
-  subject: (v) => (!v || !v.trim()) ? "Subject is required" : v.trim().length < 3 ? "Subject must be at least 3 characters" : "",
-  message: (v) => (!v || !v.trim()) ? "Message is required" : v.trim().length < 10 ? "Message must be at least 10 characters" : "",
-};
+// ── Client-side rate limit: max 1 submission per 60 seconds ──
+const COOLDOWN_SECONDS = 60;
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [sending, setSending] = useState(false);
-  const [touched, setTouched] = useState({});
-  const [errors, setErrors] = useState({});
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef(null);
 
-  const validateAll = () => {
-    const errs = {};
-    for (const key of Object.keys(contactValidators)) {
-      const err = contactValidators[key](form[key]);
-      if (err) errs[key] = err;
-    }
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleBlur = (field) => () => {
-    setTouched({ ...touched, [field]: true });
-    setErrors({ ...errors, [field]: contactValidators[field](form[field]) });
-  };
-
-  const handleChange = (field) => (e) => {
-    setForm({ ...form, [field]: e.target.value });
-    if (touched[field]) {
-      setErrors({ ...errors, [field]: contactValidators[field](e.target.value) });
-    }
+  const startCooldown = () => {
+    setCooldown(COOLDOWN_SECONDS);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setTouched({ name: true, email: true, subject: true, message: true });
-    if (!validateAll()) {
-      toast.error("Please fix the errors before sending.");
+    if (cooldown > 0) {
+      toast.error(`Please wait ${cooldown}s before sending another message.`);
       return;
     }
+    // Basic field validation
+    if (!form.name.trim() || form.name.trim().length < 2) {
+      toast.error("Please enter your full name (at least 2 characters).");
+      return;
+    }
+    if (!form.message.trim() || form.message.trim().length < 10) {
+      toast.error("Message must be at least 10 characters.");
+      return;
+    }
+
     setSending(true);
     try {
-      const sanitized = {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        subject: form.subject.trim(),
-        message: form.message.trim(),
-      };
-      await API.post("/api/contact/", sanitized);
-      toast.success("Message sent! Core connection established.");
+      await API.post("/api/contact/", form);
+      toast.success("Message sent! We'll get back to you soon.");
       setForm({ name: "", email: "", subject: "", message: "" });
-      setTouched({});
-      setErrors({});
+      startCooldown();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Transmission failed. Please try again.");
+      toast.error(formatError(err));
     } finally {
       setSending(false);
     }
   };
 
+  const isDisabled = sending || cooldown > 0;
+
   return (
-    <div className="min-h-screen pt-16 pb-16 relative overflow-hidden bg-white">
-      {/* ── AMBIENT BACKDROP ── */}
-      <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden z-0 pointer-events-none opacity-60">
-        <ParticleBackground />
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white to-transparent" />
-      </div>
-      <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-blue-400/10 rounded-full blur-[150px] -z-10" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-400/10 rounded-full blur-[120px] -z-10" />
+    <div className="relative min-h-screen overflow-hidden bg-blue-50/10 -mt-16">
+      {/* Local inline noise texture — no external request */}
+      <div
+        className="absolute inset-0 pointer-events-none z-50"
+        style={{
+          opacity: 0.03,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: "repeat",
+          backgroundSize: "200px 200px",
+        }}
+      />
 
-      <div className="max-w-6xl mx-auto px-6 relative z-10">
-        {/* ── HEADER ── */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10 relative"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full mb-8 backdrop-blur-md shadow-sm shadow-blue-900/5">
-            <Sparkles size={11} className="text-blue-600" />
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-blue-600">Contact Us</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black text-navy-950 mb-8 tracking-tighter">
-            Feel Free To  <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 italic">
-              Reach Out.    </span>
-          </h1>
-          <p className="text-slate-600 max-w-xl mx-auto text-xl font-light leading-relaxed">
-            Have questions about Examinal? Send us a message and our team will get back to you as soon as possible.
-          </p>
-        </motion.div>
+      {/* Ambient backdrop */}
+      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-blue-400/10 rounded-full blur-[120px] -z-10" />
 
+      <HeroSection
+        height="min-h-[50vh]"
+        tag="Contact Us"
+        title="Feel Free To"
+        highlight="Reach Out."
+        subtitle="Have questions about Examinal? Send us a message and our team will get back to you as soon as possible."
+      />
+
+      <div className="max-w-6xl mx-auto px-6 relative z-10 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 items-start">
-          {/* ── CONTACT DATA NODES ── */}
-          <motion.div 
+
+          {/* ── CONTACT INFO NODES ── */}
+          <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-2 space-y-8"
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-2 space-y-5"
           >
             {[
               { icon: Mail, label: "Our Email", value: "hello@examinal.com" },
-              { icon: MapPin, label: "Our Location", value: "Cloud-based · Worldwide" },
+              { icon: MapPin, label: "Our Location", value: "University of Lahore, Sargodha Campus" },
               { icon: MessageSquare, label: "Help & Support", value: "support@examinal.com" },
             ].map((item, i) => (
-              <div key={i} className="group flex items-center gap-6 p-6 rounded-3xl bg-white/90 border border-slate-200/70 hover:bg-white hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/10 shadow-lg shadow-blue-900/5 transition-all duration-300">
-                <div className="w-14 h-14 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm shadow-blue-900/5 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 flex-shrink-0">
-                  <item.icon size={24} />
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="group relative"
+              >
+                {/* Border glow */}
+                <div className="absolute -inset-[1px] bg-gradient-to-br from-blue-200/0 via-blue-300/0 to-cyan-200/0 group-hover:from-blue-300 group-hover:via-blue-200 group-hover:to-cyan-300 rounded-2xl transition-all duration-500 -z-10" />
+
+                <div className="flex items-center gap-5 p-6 rounded-2xl bg-blue-50/80 border-2 border-blue-100/50 shadow-lg shadow-blue-900/5 backdrop-blur-xl group-hover:bg-gradient-to-br group-hover:from-blue-50 group-hover:via-white/60 group-hover:to-blue-50 group-hover:border-blue-200 group-hover:-translate-y-1 transition-all duration-300">
+                  <div className="w-14 h-14 bg-blue-100 border border-blue-200 rounded-2xl flex items-center justify-center text-blue-500 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all duration-300 flex-shrink-0 shadow-sm shadow-blue-900/5">
+                    <item.icon size={22} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 mb-1">{item.label}</p>
+                    <p className="text-sm font-black text-slate-700 group-hover:text-blue-600 transition-colors">{item.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">{item.label}</p>
-                  <p className="text-lg font-black text-navy-950 tracking-tight group-hover:text-blue-600 transition-colors">{item.value}</p>
-                </div>
-              </div>
+              </motion.div>
             ))}
+
+            {/* ── Rate limit notice ── */}
+            <div className="mt-6 p-4 rounded-2xl bg-blue-50 border border-blue-100">
+              <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-widest mb-1">Spam Protection</p>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                To prevent abuse, you may only send one message per minute.
+              </p>
+            </div>
           </motion.div>
 
-          {/* ── COMMUNICATION INTERFACE ── */}
-          <motion.div 
+          {/* ── CONTACT FORM ── */}
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-3"
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-3 group relative"
           >
-            <form onSubmit={handleSubmit} className="p-10 md:p-12 rounded-[3.5rem] bg-blue-600 border border-blue-500 shadow-2xl shadow-blue-900/20 backdrop-blur-3xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent" />
-              
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+            <div className="absolute -inset-[1px] bg-gradient-to-br from-blue-200/0 via-blue-300/0 to-cyan-200/0 group-hover:from-blue-300 group-hover:via-blue-200 group-hover:to-cyan-300 rounded-[3.5rem] transition-all duration-500 -z-10" />
+
+            <form
+              onSubmit={handleSubmit}
+              className="p-10 md:p-12 rounded-[3.5rem] bg-blue-600 border border-blue-500 shadow-2xl shadow-blue-900/20 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-400/20 blur-[100px] rounded-full" />
+
+              <div className="relative z-10 space-y-7">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-white ml-1">Your Name</label>
-                    <input 
-                      className={`w-full bg-blue-700/50 border rounded-2xl px-6 py-4 text-white placeholder-white/70 focus:outline-none focus:ring-1 transition-all font-light shadow-sm shadow-black/10 ${touched.name && errors.name ? "border-red-300 focus:border-red-300 focus:ring-red-300/30" : "border-blue-500 focus:border-white focus:bg-blue-700 focus:ring-white/30"}`}
-                      placeholder="Enter your name..." 
-                      value={form.name} 
-                      onChange={handleChange("name")}
-                      onBlur={handleBlur("name")}
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-200 ml-1">Your Name</label>
+                    <input
+                      className="w-full bg-blue-500/50 border border-blue-400/50 rounded-2xl px-5 py-4 text-white placeholder-blue-300/60 focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/30 transition-all font-light text-sm disabled:opacity-50"
+                      placeholder="Enter your name..."
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      disabled={isDisabled}
+                      required
+                      minLength={2}
+                      maxLength={255}
                     />
-                    {touched.name && errors.name && <p className="flex items-center gap-1 text-xs text-red-200 mt-1 ml-1"><AlertCircle size={12} />{errors.name}</p>}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-white ml-1">Email Address</label>
-                    <input 
-                      className={`w-full bg-blue-700/50 border rounded-2xl px-6 py-4 text-white placeholder-white/70 focus:outline-none focus:ring-1 transition-all font-light shadow-sm shadow-black/10 ${touched.email && errors.email ? "border-red-300 focus:border-red-300 focus:ring-red-300/30" : "border-blue-500 focus:border-white focus:bg-blue-700 focus:ring-white/30"}`}
-                      type="email" 
-                      placeholder="you@example.com" 
-                      value={form.email} 
-                      onChange={handleChange("email")}
-                      onBlur={handleBlur("email")}
+                    <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-200 ml-1">Email Address</label>
+                    <input
+                      className="w-full bg-blue-500/50 border border-blue-400/50 rounded-2xl px-5 py-4 text-white placeholder-blue-300/60 focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/30 transition-all font-light text-sm disabled:opacity-50"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      disabled={isDisabled}
+                      required
                     />
-                    {touched.email && errors.email && <p className="flex items-center gap-1 text-xs text-red-200 mt-1 ml-1"><AlertCircle size={12} />{errors.email}</p>}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-white ml-1">Subject</label>
-                  <input 
-                    className={`w-full bg-blue-700/50 border rounded-2xl px-6 py-4 text-white placeholder-white/70 focus:outline-none focus:ring-1 transition-all font-light shadow-sm shadow-black/10 ${touched.subject && errors.subject ? "border-red-300 focus:border-red-300 focus:ring-red-300/30" : "border-blue-500 focus:border-white focus:bg-blue-700 focus:ring-white/30"}`}
-                    placeholder="Subject of your message..." 
-                    value={form.subject} 
-                    onChange={handleChange("subject")}
-                    onBlur={handleBlur("subject")}
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-200 ml-1">Subject</label>
+                  <input
+                    className="w-full bg-blue-500/50 border border-blue-400/50 rounded-2xl px-5 py-4 text-white placeholder-blue-300/60 focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/30 transition-all font-light text-sm disabled:opacity-50"
+                    placeholder="Subject of your message..."
+                    value={form.subject}
+                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    disabled={isDisabled}
+                    required
+                    maxLength={255}
                   />
-                  {touched.subject && errors.subject && <p className="flex items-center gap-1 text-xs text-red-200 mt-1 ml-1"><AlertCircle size={12} />{errors.subject}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-white ml-1">Your Message</label>
-                  <textarea 
-                    className={`w-full bg-blue-700/50 border rounded-2xl px-6 py-4 text-white placeholder-white/70 focus:outline-none focus:ring-1 transition-all font-light min-h-[160px] resize-none shadow-sm shadow-black/10 ${touched.message && errors.message ? "border-red-300 focus:border-red-300 focus:ring-red-300/30" : "border-blue-500 focus:border-white focus:bg-blue-700 focus:ring-white/30"}`}
-                    placeholder="How can we help?" 
-                    value={form.message} 
-                    onChange={handleChange("message")}
-                    onBlur={handleBlur("message")}
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-200 ml-1">
+                    Your Message
+                    <span className="ml-3 text-blue-300/60 font-normal normal-case tracking-normal">
+                      ({form.message.length}/2000)
+                    </span>
+                  </label>
+                  <textarea
+                    className="w-full bg-blue-500/50 border border-blue-400/50 rounded-2xl px-5 py-4 text-white placeholder-blue-300/60 focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/30 transition-all font-light text-sm min-h-[160px] resize-none disabled:opacity-50"
+                    placeholder="How can we help?"
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    disabled={isDisabled}
+                    required
+                    minLength={10}
+                    maxLength={2000}
                   />
-                  {touched.message && errors.message && <p className="flex items-center gap-1 text-xs text-red-200 mt-1 ml-1"><AlertCircle size={12} />{errors.message}</p>}
                 </div>
 
-                <button 
-                  type="submit" 
-                  disabled={sending} 
-                  className="w-full h-16 bg-white text-blue-600 rounded-2xl font-black text-sm uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4 shadow-xl shadow-black/10 hover:shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+                <button
+                  type="submit"
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled}
+                  className="w-full h-14 bg-white text-blue-600 rounded-2xl font-black text-sm uppercase tracking-[0.2em] hover:bg-blue-50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-lg shadow-black/10 disabled:opacity-50 disabled:cursor-not-allowed group motion-safe:hover:scale-[1.02]"
                 >
-                  {sending ? "SENDING..." : (
+                  {sending ? (
                     <>
-                      SEND MESSAGE <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      SENDING...
+                    </>
+                  ) : cooldown > 0 ? (
+                    <>
+                      <Clock size={18} />
+                      WAIT {cooldown}s
+                    </>
+                  ) : (
+                    <>
+                      SEND MESSAGE
+                      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform motion-safe:group-hover:translate-x-1" />
                     </>
                   )}
                 </button>
               </div>
             </form>
           </motion.div>
+
         </div>
       </div>
     </div>
   );
 }
-

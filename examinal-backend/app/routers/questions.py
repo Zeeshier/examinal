@@ -116,6 +116,7 @@ def generate_questions(
             question_type=payload.question_type,
             difficulty=payload.difficulty,
             topic=payload.topic,
+            marks=payload.marks,
         )
         return questions
     except Exception as e:

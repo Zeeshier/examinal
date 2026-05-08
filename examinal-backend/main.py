@@ -17,7 +17,7 @@ from app.middleware.activity_logger import ActivityLoggerMiddleware
 # ── Import every model so Base.metadata knows them ──
 from app.models import (
     user, course, content, exam, question, submission, activity_log,
-    enrollment_request, message
+    contact, enrollment_request, message, refresh_token, login_attempt, password_reset_token
 )
 
 from app.routers import (
@@ -33,7 +33,48 @@ async def lifespan(application: FastAPI):
     # ── Startup ──
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Path(settings.VECTOR_STORE_DIR).mkdir(parents=True, exist_ok=True)
+    from sqlalchemy import text
+
+    # ── Idempotent column migrations (safe to re-run; errors are swallowed) ──
+    _safe_alters = [
+        "ALTER TABLE contact_messages ADD COLUMN is_read BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE contact_messages ADD COLUMN reply TEXT NULL",
+        "ALTER TABLE contact_messages ADD COLUMN replied_at DATETIME NULL DEFAULT NULL",
+        "ALTER TABLE users ADD COLUMN failed_login_count INT NOT NULL DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN locked_until DATETIME NULL DEFAULT NULL",
+        "ALTER TABLE exams ADD COLUMN category VARCHAR(100) NOT NULL DEFAULT 'General'",
+        "ALTER TABLE exams ADD COLUMN schedule_type VARCHAR(20) NOT NULL DEFAULT 'anytime'",
+        "ALTER TABLE exams ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE exam_questions ADD COLUMN rubric TEXT NULL DEFAULT NULL",
+        "ALTER TABLE exam_questions ADD COLUMN topic VARCHAR(255) NULL DEFAULT NULL",
+        "ALTER TABLE exam_submissions ADD COLUMN results_published BOOLEAN NOT NULL DEFAULT FALSE",
+        "UPDATE exams SET category = 'General' WHERE category IS NULL",
+        "UPDATE exams SET schedule_type = 'anytime' WHERE schedule_type IS NULL",
+        "UPDATE users SET failed_login_count = 0 WHERE failed_login_count IS NULL",
+        "ALTER TABLE exams MODIFY COLUMN category VARCHAR(100) NOT NULL DEFAULT 'General'",
+        "ALTER TABLE exams MODIFY COLUMN schedule_type VARCHAR(20) NOT NULL DEFAULT 'anytime'",
+        "ALTER TABLE users MODIFY COLUMN failed_login_count INT NOT NULL DEFAULT 0",
+    ]
+    with engine.connect() as conn:
+        for stmt in _safe_alters:
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+    # Create new tables (refresh_tokens, login_attempts, password_reset_tokens, etc.)
     Base.metadata.create_all(bind=engine)
+
+    # ── Database Cleanup ──
+    from app.utils.maintenance import run_cleanup
+    from app.database import SessionLocal
+    with SessionLocal() as db:
+        run_cleanup(db)
+
     yield
     # ── Shutdown ──
 

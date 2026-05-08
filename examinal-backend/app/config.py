@@ -2,6 +2,10 @@
 Central settings — Full NVIDIA stack configuration.
 """
 
+import sys
+from typing import Any
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,10 +18,22 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug_label(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return value
+
     SECRET_KEY: str = "CHANGE-ME"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    FRONTEND_URL: str = "http://localhost:3000"
 
     DATABASE_URL: str = "sqlite:///./examinal.db"
 
@@ -73,3 +89,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# ── Security: fail fast if SECRET_KEY is the insecure default in production ──
+if not settings.DEBUG and settings.SECRET_KEY == "CHANGE-ME":
+    print(
+        "\n[CRITICAL] SECRET_KEY is set to the default 'CHANGE-ME'.\n"
+        "This is insecure in production. Set a strong SECRET_KEY in your .env file.\n"
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(64))\"\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)

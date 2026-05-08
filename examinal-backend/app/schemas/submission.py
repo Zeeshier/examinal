@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 
 from pydantic import BaseModel
 
@@ -29,6 +29,7 @@ class SubmissionOut(BaseModel):
     max_score: Optional[float]
     percentage: Optional[float]
     is_passed: Optional[bool]
+    results_published: bool
     graded_at: Optional[datetime]
 
     model_config = {"from_attributes": True}
@@ -56,5 +57,24 @@ class SubmissionDetail(BaseModel):
 class ActivityEvent(BaseModel):
     exam_id: int
     submission_id: int
-    action_type: str  # tab_switch | copy_attempt | paste_attempt | right_click | focus_lost | focus_gained
-    details: Optional[Dict] = None
+    action_type: str
+    # Accept a plain string OR a JSON object OR nothing.
+    # The frontend sends plain strings like "Violation #1: ..."
+    # which caused a 422 when this was typed as Dict only.
+    details: Optional[Union[str, Dict]] = None
+
+
+class ScoreOverrideOut(BaseModel):
+    id: int
+    answer_id: int
+    submission_id: int
+    reviewer_id: int
+    old_score: float
+    new_score: float
+    old_feedback: Optional[str]
+    new_feedback: Optional[str]
+    old_confidence: Optional[float]
+    reason: Optional[str]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

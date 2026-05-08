@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 import Header from "../components/Header";
 import LoadingSpinner from "../components/LoadingSpinner";
+import toast from "react-hot-toast";
 import { Users, BookOpen, FileText, ClipboardList, Award, ArrowRight, TrendingUp, Eye } from "lucide-react";
 
 function StatCard({ icon: Icon, label, value, color, to }) {
@@ -51,7 +52,9 @@ export default function Dashboard() {
           const sRes = await API.get("/api/submissions/my/all");
           setSubmissions(sRes.data);
         }
-      } catch {}
+      } catch (err) {
+        toast.error(err?.response?.data?.detail || "Failed to load dashboard data. Please refresh.");
+      }
       setLoading(false);
     })();
   }, [user]);
